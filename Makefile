@@ -7,6 +7,4 @@ docker-push:
 docker-run-image:
 	docker run --rm -p 1234:1234 elron/act-artifact-server:latest -p 1234
 
-build-push:
-	docker-build
-	docker-push
+build-and-push:	docker-build docker-push
