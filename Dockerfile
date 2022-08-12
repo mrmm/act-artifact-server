@@ -1,17 +1,17 @@
-FROM golang:1.19 as build
+FROM golang:1.19 as builder
 
 WORKDIR /app
 
 ADD . .
 
-RUN go mod tidy &&\
-  go build -o bin/artifact-server &&\
-  chmod +x bin/artifact-server
+
+RUN go mod tidy
+RUN GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -o bin/artifact-server
 
 FROM scratch
 
-COPY --from=build /app/bin/artifact-server /artifact-server
+COPY --from=builder /app/bin/artifact-server /bin/artifact-server
 
 EXPOSE 1234
 
-ENTRYPOINT ["/artifact-server"]
+ENTRYPOINT ["/bin/artifact-server"]
