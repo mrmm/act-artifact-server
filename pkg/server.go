@@ -84,9 +84,8 @@ func (fsys MkdirFsImpl) OpenAtEnd(name string) (fs.File, error) {
 var gzipExtension = ".gz__"
 
 func uploads(router *httprouter.Router, fsys MkdirFS) {
-	router.POST("/_apis/pipelines/workflows/:runId/artifacts", BearerAuth(*ArgsAuthToken, func(w http.ResponseWriter, req *http.Request, params httprouter.Params) {
+	router.POST("/_apis/pipelines/workflows/:runId/artifacts", WithLogging(BearerAuth(func(w http.ResponseWriter, req *http.Request, params httprouter.Params) {
 		runID := params.ByName("runId")
-		log.Info(fmt.Sprintf("POST /_apis/pipelines/workflows/%s/artifacts", runID))
 
 		json, err := json.Marshal(FileContainerResourceURL{
 			FileContainerResourceURL: fmt.Sprintf("http://%s/upload/%s", req.Host, runID),
@@ -99,12 +98,11 @@ func uploads(router *httprouter.Router, fsys MkdirFS) {
 		if err != nil {
 			log.Panic(err)
 		}
-	}))
+	})))
 
-	router.PUT("/upload/:runId", BearerAuth(*ArgsAuthToken, func(w http.ResponseWriter, req *http.Request, params httprouter.Params) {
+	router.PUT("/upload/:runId", WithLogging(BearerAuth(func(w http.ResponseWriter, req *http.Request, params httprouter.Params) {
 		itemPath := req.URL.Query().Get("itemPath")
 		runID := params.ByName("runId")
-		log.Info(fmt.Sprintf("PUT /upload/%s", runID))
 
 		if req.Header.Get("Content-Encoding") == "gzip" {
 			itemPath += gzipExtension
@@ -155,11 +153,9 @@ func uploads(router *httprouter.Router, fsys MkdirFS) {
 		if err != nil {
 			log.Panic(err)
 		}
-	}))
+	})))
 
-	router.PATCH("/_apis/pipelines/workflows/:runId/artifacts", BearerAuth(*ArgsAuthToken, func(w http.ResponseWriter, req *http.Request, params httprouter.Params) {
-		runID := params.ByName("runId")
-		log.Info(fmt.Sprintf("PATCH /_apis/pipelines/workflows/%s/artifacts", runID))
+	router.PATCH("/_apis/pipelines/workflows/:runId/artifacts", WithLogging(BearerAuth(func(w http.ResponseWriter, req *http.Request, params httprouter.Params) {
 
 		json, err := json.Marshal(ResponseMessage{
 			Message: "success",
@@ -172,13 +168,12 @@ func uploads(router *httprouter.Router, fsys MkdirFS) {
 		if err != nil {
 			log.Panic(err)
 		}
-	}))
+	})))
 }
 
 func downloads(router *httprouter.Router, fsys fs.FS) {
-	router.GET("/_apis/pipelines/workflows/:runId/artifacts", BearerAuth(*ArgsAuthToken, func(w http.ResponseWriter, req *http.Request, params httprouter.Params) {
+	router.GET("/_apis/pipelines/workflows/:runId/artifacts", WithLogging(BearerAuth(func(w http.ResponseWriter, req *http.Request, params httprouter.Params) {
 		runID := params.ByName("runId")
-		log.Info(fmt.Sprintf("GET /_apis/pipelines/workflows/%s/artifacts", runID))
 
 		entries, err := fs.ReadDir(fsys, runID)
 		if err != nil {
@@ -205,12 +200,11 @@ func downloads(router *httprouter.Router, fsys fs.FS) {
 		if err != nil {
 			log.Panic(err)
 		}
-	}))
+	})))
 
-	router.GET("/download/:container", BearerAuth(*ArgsAuthToken, func(w http.ResponseWriter, req *http.Request, params httprouter.Params) {
+	router.GET("/download/:container", WithLogging(BearerAuth(func(w http.ResponseWriter, req *http.Request, params httprouter.Params) {
 		container := params.ByName("container")
 		itemPath := req.URL.Query().Get("itemPath")
-		log.Info(fmt.Sprintf("/download/%s?itemPath=%s", container, itemPath))
 
 		dirPath := fmt.Sprintf("%s/%s", container, itemPath)
 
@@ -248,11 +242,10 @@ func downloads(router *httprouter.Router, fsys fs.FS) {
 		if err != nil {
 			log.Panic(err)
 		}
-	}))
+	})))
 
-	router.GET("/artifact/*path", BearerAuth(*ArgsAuthToken, func(w http.ResponseWriter, req *http.Request, params httprouter.Params) {
+	router.GET("/artifact/*path", WithLogging(BearerAuth(func(w http.ResponseWriter, req *http.Request, params httprouter.Params) {
 		path := params.ByName("path")[1:]
-		log.Info(fmt.Sprintf("GET /artifact/%s", path))
 
 		file, err := fsys.Open(path)
 		if err != nil {
@@ -268,33 +261,33 @@ func downloads(router *httprouter.Router, fsys fs.FS) {
 		if err != nil {
 			log.Panic(err)
 		}
-	}))
+	})))
 }
 
 func Serve(ctx context.Context) context.CancelFunc {
 	_, cancel := context.WithCancel(ctx)
 
-	if *ArgsArtifactPath == "" {
+	if CLI.Server.ArtifactPath == "" {
 		panic("artifactPath is empty")
 	}
 
 	router := httprouter.New()
 
-	log.Debug(fmt.Sprintf("Artifacts base path: %s", *ArgsArtifactPath))
-	fs := os.DirFS(*ArgsArtifactPath)
-	uploads(router, MkdirFsImpl{*ArgsArtifactPath, fs})
+	fmt.Printf("Artifacts base path: %s", CLI.Server.ArtifactPath)
+	fs := os.DirFS(CLI.Server.ArtifactPath)
+	uploads(router, MkdirFsImpl{CLI.Server.ArtifactPath, fs})
 	downloads(router, fs)
 
 	server := &http.Server{
-		Addr:              *ArgsServerBind,
+		Addr:              CLI.Server.Bind,
 		ReadHeaderTimeout: 2 * time.Second,
 		Handler:           router,
 	}
 
 	// run server
-	log.Debug(fmt.Sprintf("Start server on http://%s", *ArgsServerBind))
-	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-		log.Fatal(fmt.Sprint(err))
+	log.WithField("addr", CLI.Server.Bind).Info("starting server")
+	if err := server.ListenAndServe(); err != nil {
+		log.WithField("event", "start server").Fatal(err)
 	}
 
 	return cancel

@@ -3,6 +3,7 @@ module github.com/mrmm/act-artifact-server
 go 1.19
 
 require (
+	github.com/alecthomas/kong v0.6.1
 	github.com/julienschmidt/httprouter v1.3.0
 	github.com/sirupsen/logrus v1.9.0
 	gopkg.in/alecthomas/kingpin.v2 v2.2.6

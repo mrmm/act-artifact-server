@@ -1,16 +1,14 @@
 package pkg
 
-import "gopkg.in/alecthomas/kingpin.v2"
+var CLI struct {
+	Log struct {
+		Level string `short:"l" enum:"trace,debug,info,warn,error" default:"debug"`
+		Type  string `enum:"json,console" default:"json"`
+	} `embed:"" prefix:"log-"`
 
-var (
-	ArgsApp       = kingpin.New("artifact-server", "A simple artifact server used with Act")
-	ArgsAuthToken = ArgsApp.Flag("auth-token", "API token to be used for authenthication. (evironment variable AUTH_TOKEN)").Short('t').
-			Default("ActIsAwesome").
-			OverrideDefaultFromEnvar("AUTH_TOKEN").String()
-	ArgsArtifactPath = ArgsApp.Flag("path", "The root directory where to store artifacts. (evironment variable ARTIFACT_PATH)").Short('d').
-				Default("/tmp/artifacts").
-				OverrideDefaultFromEnvar("ARTIFACT_PATH").String()
-	ArgsServerBind = ArgsApp.Flag("bind", "HOST:PORT to bind the server. (evironment variable SERVER_BIND)").Short('b').
-			Default("0.0.0.0:1234").
-			OverrideDefaultFromEnvar("SERVER_BIND").String()
-)
+	Server struct {
+		Token        string `short:"t" help:"API token to be used for authenthication." default:"ActIsAwesome" env:"TOKEN"`
+		ArtifactPath string `short:"d" help:"The root directory where to store artifacts." default:"/tmp/artifacts" env:"ARTIFACT_PATH"`
+		Bind         string `short:"b" help:"Host to listen on." default:"0.0.0.0:1234" env:"BIND"`
+	} `embed:"" prefix:"server-" envprefix:"SERVER_"`
+}
