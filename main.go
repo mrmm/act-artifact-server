@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"flag"
 	"os"
 
 	"github.com/mrmm/act-artifact-server/pkg"
@@ -10,6 +9,9 @@ import (
 )
 
 func init() {
+	// Parse the command line arguments
+	pkg.ArgsApp.Parse(os.Args[1:])
+
 	// Log as JSON instead of the default ASCII formatter.
 	log.SetFormatter(&log.JSONFormatter{})
 
@@ -22,15 +24,10 @@ func init() {
 }
 
 func main() {
+
+	log.Debug("Starting artifact-server with Token: ", *pkg.ArgsAuthToken)
 	ctx := context.Background()
-
-	var host, port, artifactPath string
-	flag.StringVar(&host, "h", "0.0.0.0", "Host to listen on")
-	flag.StringVar(&port, "p", "1234", "Port to listen on")
-	flag.StringVar(&artifactPath, "d", "/tmp", "Artifact path")
-	flag.Parse()
-
-	cancel := pkg.Serve(ctx, artifactPath, host, port)
+	cancel := pkg.Serve(ctx)
 
 	defer cancel()
 
